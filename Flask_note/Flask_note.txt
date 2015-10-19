@@ -1,0 +1,265 @@
+flask 的hello world
+from flask import Flask
+
+app = Flask(__name__)
+
+
+@app.route('/')
+def hello_world():
+    return 'Hello World!'
+
+
+if __name__ == '__main__':
+    app.run()
+    
+ from flask import Flask,request,url_for
+app = Flask(__name__)
+
+
+@app.route('/')
+def hello_world():
+    return 'Hello World!'
+
+@app.route('/user', methods=['POST'])
+def hello_user():
+    return 'hello user'
+
+@app.route('/users/<id>')
+def user_id(id):
+    return 'hello user:'+id
+
+@app.route('/query_user')
+def query_user():
+    id = request.args.get('id')
+    return 'query user:'+id
+
+@app.route('/query_url')
+def query_url():
+    return 'query url:'+url_for('query_user')
+
+if __name__ == '__main__':
+    app.run()  
+
+class User(object):
+    def __init__(self, user_id , user_name):
+        self.user_id = user_id
+        self.user_name = user_name
+
+from flask import Flask, render_template
+from models import User
+
+app = Flask(__name__)
+
+
+@app.route('/')
+def hello_world():
+    content = "Hello world"
+    return render_template("index.html",content=content)
+
+@app.route('/user')
+def user_index():
+    user = User(1, 'jikexueyuan')
+    return  render_template("user_index.html", user=user)
+
+@app.route('/query_user/<user_id>')
+def query_user(user_id):
+    user = None
+    if int(user_id) == 1:
+        user = User(1, 'jikexueyuan')
+
+    return render_template("user_id.html",user=user)
+
+@app.route('/users')
+def user_list():
+    users = []
+    for i in range(1,11):
+        user = User(i, 'jikexueyuan'+str(i))
+        users.append(user)
+
+    return render_template("user_list.html",users=users)
+
+
+@app.route('/one')
+def one_base():
+    return  render_template("one_base.html")
+
+@app.route('/two')
+def two_base():
+    return  render_template("two_base.html")
+
+if __name__ == '__main__':
+    app.run()        
+    
+错误处理  
+from flask import Flask, flash, render_template, request,abort
+
+app = Flask(__name__)
+app.secret_key = '123'
+
+
+@app.route('/')
+def hello_world():
+    flash("hello jikexueyuan")
+    return render_template("index.html")
+
+@app.route('/login', methods=['POST'])
+def login():
+    form = request.form
+    username = form.get('username')
+    password = form.get('password')
+
+    if not username:
+        flash("please input username")
+        return render_template("index.html")
+    if not password:
+        flash("please input password")
+        return render_template("index.html")
+
+    if username == 'jikexueyuan' and password == '123456':
+        flash("login success")
+        return render_template("index.html")
+    else:
+        flash("username or password is wrong")
+        return render_template("index.html")
+
+
+@app.errorhandler(404)
+def not_found(e):
+    return render_template("404.html")
+
+@app.route('/users/<user_id>')
+def users(user_id):
+    if int(user_id) == 1:
+        return render_template("user.html")
+    else:
+        abort(404)
+
+
+
+if __name__ == '__main__':
+    app.run()
+
+请求对象
+请求对象在 API 一节中有详细说明这里不细谈（参见 request ）。 这里简略地谈一下最常见的操作。首先，你必须从 flask 模块导入请求对象:
+
+from flask import request
+通过使用 method 属性可以操作当前请求方法，通过使用 form 属性处理表单数据。以下是使用两个属性的例子:
+
+@app.route('/login', methods=['POST', 'GET'])
+def login():
+    error = None
+    if request.method == 'POST':
+        if valid_login(request.form['username'],
+                       request.form['password']):
+            return log_the_user_in(request.form['username'])
+        else:
+            error = 'Invalid username/password'
+    # 如果请求访求是 GET 或验证未通过就会执行下面的代码
+    return render_template('login.html', error=error)
+当 form 属性中不存在这个键时会发生什么？会引发一个 KeyError 。如果你不 像捕捉一个标准错误一样捕捉 KeyError ，那么会显示一个 HTTP 400 Bad Request 错误页面。因此，多数情况下你不必处理这个问题。
+
+要操作 URL （如 ?key=value ）中提交的参数可以使用 args 属性:
+
+searchword = request.args.get('key', '')
+用户可能会改变 URL 导致出现一个 400 请求出错页面，这样降低了用户友好度。因此， 我们推荐使用 get 或通过捕捉 KeyError 来访问 URL 参数。
+
+完整的请求对象方法和属性参见 request 文档。
+Cookies
+要访问 cookies ，可以使用 cookies 属性。可以使用请求对象 的 set_cookie 方法来设置 cookies 。请求对象的 cookies 属性是一个包含了客户端传输的所有 cookies 的字典。 在 Flask 中，如果能够使用 会话 ，那么就不要直接使用 cookies ，因为 会话比较安全一些。
+
+读取 cookies:
+
+from flask import request
+
+@app.route('/')
+def index():
+    username = request.cookies.get('username')
+    # 使用 cookies.get(key) 来代替 cookies[key] ，
+    # 以避免当 cookie 不存在时引发 KeyError 。
+储存 cookies:
+
+from flask import make_response
+
+@app.route('/')
+def index():
+    resp = make_response(render_template(...))
+    resp.set_cookie('username', 'the username')
+    return resp
+注意， cookies 设置在响应对象上。通常只是从视图函数返回字符串， Flask 会把它们 转换为响应对象。如果你想显式地转换，那么可以使用 make_response() 函数，然后再修改它。
+
+使用 延迟的请求回调 方案可以在没有响应对象的情况下设置一个 cookie 。
+
+同时可以参见 关于响应 。
+重定向和错误
+使用 redirect() 函数可以重定向。使用 abort() 可以更早 退出请求，并返回错误代码:
+
+from flask import abort, redirect, url_for
+
+@app.route('/')
+def index():
+    return redirect(url_for('login'))
+
+@app.route('/login')
+def login():
+    abort(401)
+    this_is_never_executed()
+上例实际上是没有意义的，它让一个用户从索引页重定向到一个无法访问的页面（401 表示禁止访问）。但是上例可以说明重定向和出错跳出是如何工作的。
+
+缺省情况下每种出错代码都会对应显示一个黑白的出错页面。使用 errorhandler() 装饰器可以定制出错页面:
+
+from flask import render_template
+
+@app.errorhandler(404)
+def page_not_found(error):
+    return render_template('page_not_found.html'), 404
+注意 render_template() 后面的 404 ，这表示页面对就的出错代码是 404 ，即页面不存在。缺省情况下 200 表示一切正常。
+会话
+除了请求对象之外还有一种称为 session 的对象，允许你在不同请求 之间储存信息。这个对象相当于用密钥签名加密的 cookie ，即用户可以查看你的 cookie ，但是如果没有密钥就无法修改它。
+
+使用会话之前你必须设置一个密钥。举例说明:
+
+from flask import Flask, session, redirect, url_for, escape, request
+
+app = Flask(__name__)
+
+@app.route('/')
+def index():
+    if 'username' in session:
+        return 'Logged in as %s' % escape(session['username'])
+    return 'You are not logged in'
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        session['username'] = request.form['username']
+        return redirect(url_for('index'))
+    return '''
+        <form action="" method="post">
+            <p><input type=text name=username>
+            <p><input type=submit value=Login>
+        </form>
+    '''
+
+@app.route('/logout')
+def logout():
+    # 如果会话中有用户名就删除它。
+    session.pop('username', None)
+    return redirect(url_for('index'))
+
+# 设置密钥，复杂一点：
+app.secret_key = 'A0Zr98j/3yX R~XHH!jmN]LWX/,?RT'
+这里用到的 escape() 是用来转义的。如果不使用模板引擎就可以像上例 一样使用这个函数来转义。
+
+如何生成一个好的密钥
+生成随机数的关键在于一个好的随机种子，困此一个好的密钥应当有足够的随机性。 你的操作系统可以使用一个随机生成器来生成一个好的随机种子：
+
+>>> import os
+>>> os.urandom(24)
+'\xfd{H\xe5<\x95\xf9\xe3\x96.5\xd1\x01O<!\xd5\xa2\xa0\x9fR"\xa1\xa8'
+只要复制这个随机种子到你的代码中就行了。
+基于 cookie 的会话的说明： Flask 会把会话对象中的值储存在 cookie 中。在打开 cookie 的情况下，如果你访问会话对象中没有的值，那么会得到模糊的错误信息：请检查 页面 cookie 的大小是否与网络浏览器所支持的大小一致。
+
+消息闪现
+一个好的应用和用户接口都有良好的反馈，否则到后来用户就会讨厌这个应用。 Flask 通过闪现系统来提供了一个易用的反馈方式。闪现系统的基本工作原理是在请求结束时 记录一个消息，提供且只提供给下一个请求使用。通常通过一个布局模板来展现闪现的 消息。
+
+flash() 用于闪现一个消息。在模板中，使用 get_flashed_messages() 来操作消息。完整的例子参见 消息闪现 。
